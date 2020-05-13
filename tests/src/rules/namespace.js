@@ -130,6 +130,15 @@ const valid = [
     },
   })),
 
+  ...getTSParsers().map((parser) => test({
+    code: `import { foobar } from "./typescript-declare-interface"`,
+    parser: parser,
+    settings: {
+      'import/parsers': { [parser]: ['.ts'] },
+      'import/resolver': { 'eslint-import-resolver-typescript': true },
+    },
+  })),
+
   ...SYNTAX_CASES,
 ]
 
