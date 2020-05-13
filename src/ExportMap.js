@@ -551,26 +551,44 @@ ExportMap.parse = function (path, content, context) {
         return
       }
       exportedDecls.forEach((decl) => {
-        if (decl.type === 'TSModuleDeclaration' && decl && decl.body && decl.body.body) {
-          decl.body.body.forEach((moduleBlockNode) => {
-            // Export-assignment exports all members in the namespace, explicitly exported or not.
-            const namespaceDecl = moduleBlockNode.type === 'ExportNamedDeclaration' ?
-              moduleBlockNode.declaration :
-              moduleBlockNode
+        if (decl.type === 'TSModuleDeclaration') {
+          let currentDecl = decl
+          let moduleDecls = [decl]
 
-            if (namespaceDecl.type === 'VariableDeclaration') {
-              namespaceDecl.declarations.forEach((d) =>
-                recursivePatternCapture(d.id, (id) => m.namespace.set(
-                  id.name,
-                  captureDoc(source, docStyleParsers, decl, namespaceDecl, moduleBlockNode))
+          // Find recursive TSModuleDeclaration
+          while (currentDecl.body && currentDecl.body.type === 'TSModuleDeclaration') {
+            currentDecl = currentDecl.body
+            moduleDecls.push(currentDecl)
+          }
+
+          if (currentDecl.body && currentDecl.body.body) {
+            currentDecl.body.body.forEach((moduleBlockNode) => {
+              // Export-assignment exports all members in the namespace,
+              // explicitly exported or not.
+              const namespaceDecl = moduleBlockNode.type === 'ExportNamedDeclaration' ?
+                moduleBlockNode.declaration :
+                moduleBlockNode
+
+              if (namespaceDecl.type === 'VariableDeclaration') {
+                namespaceDecl.declarations.forEach((d) =>
+                  recursivePatternCapture(d.id, (id) => m.namespace.set(
+                    id.name,
+                    captureDoc(
+                      source,
+                      docStyleParsers,
+                      ...moduleDecls,
+                      namespaceDecl,
+                      moduleBlockNode
+                    )
+                  ))
                 )
-              )
-            } else {
-              m.namespace.set(
-                namespaceDecl.id.name,
-                captureDoc(source, docStyleParsers, moduleBlockNode))
-            }
-          })
+              } else {
+                m.namespace.set(
+                  namespaceDecl.id.name,
+                  captureDoc(source, docStyleParsers, moduleBlockNode))
+              }
+            })
+          }
         } else {
           // Export as default
           m.namespace.set('default', captureDoc(source, docStyleParsers, decl))
