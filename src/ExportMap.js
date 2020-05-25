@@ -555,17 +555,10 @@ ExportMap.parse = function (path, content, context) {
       }
       exportedDecls.forEach((decl) => {
         if (decl.type === 'TSModuleDeclaration') {
-          let currentDecl = decl
-          let moduleDecls = [decl]
-
-          // Find recursive TSModuleDeclaration
-          while (currentDecl.body && currentDecl.body.type === 'TSModuleDeclaration') {
-            currentDecl = currentDecl.body
-            moduleDecls.push(currentDecl)
-          }
-
-          if (currentDecl.body && currentDecl.body.body) {
-            currentDecl.body.body.forEach((moduleBlockNode) => {
+          if (decl.body && decl.body.type === 'TSModuleDeclaration') {
+            m.namespace.set(decl.body.id.name, captureDoc(source, docStyleParsers, decl.body))
+          } else if (decl.body && decl.body.body) {
+            decl.body.body.forEach((moduleBlockNode) => {
               // Export-assignment exports all members in the namespace,
               // explicitly exported or not.
               const namespaceDecl = moduleBlockNode.type === 'ExportNamedDeclaration' ?
@@ -576,13 +569,7 @@ ExportMap.parse = function (path, content, context) {
                 namespaceDecl.declarations.forEach((d) =>
                   recursivePatternCapture(d.id, (id) => m.namespace.set(
                     id.name,
-                    captureDoc(
-                      source,
-                      docStyleParsers,
-                      ...moduleDecls,
-                      namespaceDecl,
-                      moduleBlockNode
-                    )
+                    captureDoc(source, docStyleParsers, decl, namespaceDecl, moduleBlockNode)
                   ))
                 )
               } else {
